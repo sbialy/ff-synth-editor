@@ -1,0 +1,20 @@
+# OpenTracker module manifest (core: docs/PLAN_3X.md §7.2, tools/profile.py).
+id      = "TTY1"
+name    = "T-Type drums"
+version = "1.0.0"
+api     = 1
+entry   = "ttypeModule"
+caps    = ["synthEngine"]
+sources = ["ttype.cpp", "ttype_desc.cpp", "ttype_module.cpp"]
+tests   = ["engine_ttype_test.cpp"]
+
+flash_max_bytes   = 16000
+sram_audio_bytes  = 0                 # no static buffers (the kit lives in the slot scratch)
+sdram_bytes       = 0
+fastrun_bytes     = 0
+cpu_insn_per_unit = 30000             # bench-m4 limit per slot (ttype.unit: the costliest 8 drums at once)
+max_units         = 3
+bench             = "ttype"
+engines           = [133]             # 0x85: a module engine (not a Tracker Mini model)
+bench_sources     = ["ttype_bench.cpp"]
+bench_entry       = "ttypeBench"

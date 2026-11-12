@@ -1,0 +1,17 @@
+node_modules/
+build/
+*.log
+.DS_Store
+
+# unpublished source of PHZ and PLK, only copied by POLY_PRIVATE_SOURCE=1 scripts/vendor.sh for the dev-only linked wasm reference
+vendor/poly/synth-open/engine_phz.cpp
+vendor/poly/synth-open/phz/
+vendor/poly/synth-open/engine_pluck.cpp
+vendor/poly/synth-open/pluck/
+dist/
+
+# local stand-ins for scripts/modules.ts --from (paths on one machine)
+modules.local.json
+
+# local environment of a machine (bun loads it): POLY_REPO, EMSDK, TOOLCHAIN, MODULES_*_REPO ...
+.env

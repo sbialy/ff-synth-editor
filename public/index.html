@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FF SYNTH EDITOR</title>
+<style>
+  /* Faceplate: a putty coloured front panel with silkscreen labels, a charcoal top rail and keybed, olive LCD windows for every
+     readout, one orange signal colour for what is engaged. Plain CSS, system fonts only. */
+  :root {
+    color-scheme: light;
+    --chassis:#23282b; --chassis-2:#2f3539; --chassis-line:#4b5358; --chassis-ink:#e6e9df; --chassis-dim:#98a198;
+    --plate:#cdd0c6; --face:#e2e4db; --face-line:#a6aa9f; --ink:#1f241e; --ink-dim:#4d5348;
+    --signal:#e4532a; --signal-text:#a3340f; --on-signal:#fff6ef; --teal:#1d6a86; --teal-lit:#7fd2d4;
+    --lcd:#b3c08c; --lcd-ink:#1d2813; --lcd-dim:#4f5d38; --lcd-warn:#8c2a0a; --lcd-edge:#7c8a5a;
+    --f-label:"DIN Condensed","Barlow Condensed","Avenir Next Condensed","Arial Narrow",sans-serif;
+    --f-body:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    --f-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --warn:var(--signal-text);
+  }
+  * { box-sizing:border-box; }
+  /* the top rail and the keybed are sticky: scrolled or focused things stop short of them */
+  html { scroll-padding:190px 0 130px; }
+  body { margin:0; background:var(--plate); color:var(--ink); font:13px/1.4 var(--f-body); }
+  :focus-visible { outline:2px solid var(--signal); outline-offset:2px; }
+  button, input, select { font:inherit; color:inherit; }
+  button { cursor:pointer; }
+  [hidden] { display:none !important; }
+  .dim { color:var(--ink-dim); } .warn { color:var(--warn); } .eonly { font-style:italic; }
+  .small, label.small { font:700 12px/1 var(--f-label); text-transform:uppercase; letter-spacing:.1em; color:var(--ink-dim); }
+
+  /* controls on the plate */
+  main button, main select, main input[type=text], main input[type=number], dialog button {
+    background:#eef0e8; border:1px solid #84887d; border-bottom-width:2px; border-radius:4px; padding:4px 9px; color:var(--ink);
+  }
+  main button:hover:not(:disabled), dialog button:hover { border-color:var(--ink); }
+  main button:active:not(:disabled), dialog button:active { transform:translateY(1px); border-bottom-width:1px; }
+  main button:disabled, main select:disabled { opacity:.45; cursor:default; }
+  main input[type=text], main input[type=number], main select { background:#f4f5ef; border-bottom-width:1px; box-shadow:inset 0 1px 2px rgba(0,0,0,.15); }
+  button.primary { background:var(--signal) !important; border-color:#8e2c0f !important; color:var(--on-signal) !important; font-weight:700; letter-spacing:.02em; }
+  input[type=checkbox] { accent-color:var(--signal); }
+
+  /* top rail */
+  header { position:sticky; top:0; z-index:5; background:var(--chassis); color:var(--chassis-ink); border-bottom:3px solid #14171a; padding:10px 18px 12px; display:grid; gap:10px 22px; grid-template-columns:auto minmax(260px,1fr) auto; align-items:center; --warn:#ff9a6e; }
+  header h1 { margin:0; font:800 30px/.9 var(--f-label); letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; }
+  header h1 span { color:var(--signal); }
+  .lcd { background:var(--lcd); color:var(--lcd-ink); border:1px solid var(--lcd-edge); border-radius:4px; box-shadow:inset 0 2px 5px rgba(20,30,8,.45), 0 1px 0 rgba(255,255,255,.12); font-family:var(--f-mono); }
+  .screen { display:flex; align-items:baseline; gap:14px; padding:6px 12px; min-height:40px; min-width:0; }
+  .screen #engname { font:800 24px/1 var(--f-label); letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
+  #status { flex:1; min-width:0; font-size:12px; line-height:1.3; color:var(--lcd-dim); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  #status.err { color:var(--lcd-warn); font-weight:700; } #status.warn { color:var(--lcd-warn); }
+  .fwbox { display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; font-size:12px; }
+  .fwbadge { border:1px solid var(--teal-lit); border-radius:10px; padding:1px 10px; color:var(--teal-lit); white-space:nowrap; font-size:11px; }
+  .bank { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:8px 28px; align-items:flex-end; }
+  .egroup { display:flex; flex-direction:column; gap:4px; }
+  .egroup[data-group=ff] { flex-basis:100%; } /* the ff-engines are a row of their own */
+  .egroup > .ghead, .filebar label.small { font:700 11px/1 var(--f-label); text-transform:uppercase; letter-spacing:.16em; color:var(--chassis-dim); }
+  .gbtns { display:flex; flex-wrap:wrap; gap:5px; }
+  .engines { display:contents; }
+  .engines button { display:flex; flex-direction:column; align-items:flex-start; gap:1px; background:var(--chassis-2); color:var(--chassis-ink); border:1px solid var(--chassis-line); border-bottom:3px solid #14171a; border-radius:3px; padding:4px 10px 3px 22px; position:relative; font:700 13px/1.1 var(--f-label); letter-spacing:.06em; text-transform:uppercase; }
+  .engines button::before { content:""; position:absolute; left:8px; top:8px; width:6px; height:6px; border-radius:50%; background:#13161a; box-shadow:inset 0 0 0 1px #000; }
+  .engines button:hover { border-color:var(--chassis-ink); }
+  .engines button:active { transform:translateY(1px); border-bottom-width:2px; }
+  .engines button.on { background:#3b4247; color:#fff; border-color:var(--signal); }
+  .engines button.on::before { background:var(--signal); box-shadow:0 0 6px 1px rgba(228,83,42,.8); }
+  .engines button.preview { border-style:dashed; }
+  .engines button small { font:400 9px/1 var(--f-body); letter-spacing:0; text-transform:none; color:#ffb08e; }
+  .engines button small:empty { display:none; }
+  .engtag { font:700 11px/1 var(--f-label); letter-spacing:.14em; text-transform:uppercase; color:var(--lcd-warn); border:1px solid var(--lcd-warn); border-radius:3px; padding:2px 6px; align-self:center; white-space:nowrap; }
+  .filebar { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:8px 22px; align-items:center; padding-top:10px; border-top:1px solid var(--chassis-line); }
+  .filebar .grp { display:flex; align-items:center; gap:7px; }
+  header input, header select, header button { background:#171b1e; color:var(--chassis-ink); border:1px solid var(--chassis-line); border-radius:4px; padding:4px 9px; }
+  header button:hover { border-color:var(--chassis-ink); }
+  header button.primary { background:var(--signal); border-color:#8e2c0f; color:var(--on-signal); font-weight:700; }
+  header input::placeholder { color:#6d766e; }
+  #dir { width:250px; } #name { width:160px; } #patchsearch { width:230px; }
+  .combo { position:relative; }
+  .combolist { position:absolute; top:100%; left:0; z-index:20; min-width:100%; width:max-content; max-width:420px; max-height:min(320px, 50vh); overflow:auto; margin:3px 0 0; padding:3px; list-style:none; background:var(--chassis); color:var(--chassis-ink); border:1px solid var(--chassis-line); border-radius:4px; box-shadow:0 6px 18px rgba(0,0,0,.45); }
+  .combolist li { padding:3px 9px; border-radius:3px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .combolist li:hover { background:var(--chassis-2); }
+  .combolist li.active { background:var(--signal); color:var(--on-signal); }
+  .combolist li.loaded { font-weight:700; }
+  .combolist li { display:flex; align-items:center; gap:10px; }
+  .combolist li .nm { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+  .combolist li .rs { flex:none; font-size:11px; letter-spacing:1px; color:var(--signal); }
+  .combolist li .rs .off { opacity:.22; }
+  .combolist li.active .rs { color:inherit; }
+  .combolist li.tools { position:sticky; top:-3px; z-index:1; margin:-3px -3px 3px; padding:4px 9px; border-radius:0; justify-content:space-between; background:var(--chassis-2); cursor:default; }
+  .combolist li.tools:hover { background:var(--chassis-2); }
+  .combolist li.tools button { background:transparent; border:none; padding:0 1px; font-size:13px; line-height:1; color:var(--chassis-dim); cursor:pointer; }
+  .combolist li.tools button.on { color:var(--signal); }
+  .combolist li.tools button:hover { color:var(--chassis-ink); }
+  .combolist li.tools .rsort { font:700 10px/1 var(--f-label); letter-spacing:.08em; text-transform:uppercase; border:1px solid var(--chassis-line); border-radius:3px; padding:3px 6px; }
+  .combolist li.tools .rsort.on { color:var(--signal); border-color:var(--signal); }
+  .stars { display:inline-flex; gap:0; }
+  header .stars button { background:transparent; border:none; padding:0 1px; font-size:15px; line-height:1; color:var(--chassis-dim); opacity:.55; cursor:pointer; }
+  header .stars button.on { color:var(--signal); opacity:1; }
+  header .stars button:hover:not(:disabled) { color:var(--signal); opacity:1; }
+  header .stars button:disabled { cursor:default; opacity:.3; }
+  header .stars button.on:disabled { opacity:.6; }
+  .combolist li.none { color:var(--chassis-dim); cursor:default; }
+  #dirtymark { font-size:12px; }
+
+  /* body */
+  main { padding:18px 18px 22px; display:flex; flex-direction:column; gap:16px; max-width:1560px; margin:0 auto; }
+  .panel, .section, .macro { background:var(--face); border:1px solid var(--face-line); border-radius:6px; box-shadow:0 1px 0 rgba(255,255,255,.55) inset, 0 2px 0 rgba(0,0,0,.12); }
+  .panel { padding:12px 14px 14px; }
+  .strip, .section h2 { display:flex; align-items:center; gap:10px; margin:0 0 9px; font:800 14px/1 var(--f-label); letter-spacing:.16em; text-transform:uppercase; color:var(--ink); }
+  .strip::after, .section h2::after { content:""; flex:1; height:2px; background:var(--ink); opacity:.55; border-radius:1px; }
+  .master { display:flex; flex-direction:column; gap:16px; }
+  .deck { display:grid; grid-template-columns:minmax(300px,420px) 1fr; gap:16px; align-items:start; }
+  .play { display:flex; flex-direction:column; gap:10px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; }
+  .play input[type=number] { width:62px; }
+  #livebtn.on, #kbtoggle.on { background:var(--teal); border-color:#0f3b4d; color:#fff; font-weight:700; }
+  #livestate, #voices, #midistate, #midimon { font-size:11.5px; color:var(--ink-dim); }
+  .midi select { max-width:200px; }
+
+  .rand { display:flex; flex-wrap:wrap; gap:9px 16px; align-items:center; }
+  .rand .amount { display:flex; align-items:center; gap:8px; }
+  .rand input[type=range] { width:130px; }
+  #randamtv { font:12px var(--f-mono); min-width:3.6em; padding:2px 6px; text-align:right; background:var(--lcd); color:var(--lcd-ink); border-radius:3px; box-shadow:inset 0 1px 3px rgba(20,30,8,.45); }
+  .rand input[type=text] { width:200px; font-family:var(--f-mono); font-size:12px; }
+  .rand .secs { display:flex; flex-wrap:wrap; gap:4px 12px; }
+  .rand .secs label { font-size:12px; white-space:nowrap; } .rand .secs label.off { color:var(--ink-dim); text-decoration:line-through; text-decoration-color:rgba(0,0,0,.3); }
+  #randlast { cursor:pointer; color:var(--teal); font:12px var(--f-mono); text-decoration:underline dotted; } #randhint { color:var(--warn); } #randhint.err { color:#a3190b; font-weight:700; } #randseed[aria-invalid=true] { border-color:#a3190b; outline:1px solid #a3190b; }
+  .hist { flex-basis:100%; display:flex; flex-wrap:wrap; gap:10px 22px; align-items:flex-start; }
+  .histlist { display:flex; flex-direction:column; gap:4px; flex:1 1 420px; min-width:0; }
+  #randhist { margin:0; padding:2px; list-style:none; max-height:150px; overflow:auto; position:relative; background:var(--lcd); border:1px solid var(--lcd-edge); border-radius:4px; box-shadow:inset 0 2px 5px rgba(20,30,8,.45); font:12px/1.35 var(--f-mono); color:var(--lcd-ink); }
+  #randhist li { margin:0; }
+  #randhist button { display:flex; gap:10px; width:100%; text-align:left; border:none !important; border-radius:2px; background:none !important; box-shadow:none; padding:1px 8px !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font:inherit; color:inherit; transform:none !important; }
+  #randhist button:hover { background:rgba(29,40,19,.14) !important; }
+  #randhist li.fwd button { color:var(--lcd-dim); }
+  #randhist li.cur button { background:var(--lcd-ink) !important; color:var(--lcd); font-weight:700; }
+  #randhist .n { color:var(--lcd-dim); min-width:2.8em; } #randhist li.cur .n { color:var(--lcd); }
+  .recipe { display:flex; flex-direction:column; gap:7px; flex:1 1 360px; } .recipe .row { flex-wrap:nowrap; gap:7px; } .recipe input[type=text] { flex:1; min-width:0; width:auto; }
+  #recipenote { min-height:16px; font-size:12px; } #recipenote.warn { color:var(--warn); } #recipenote.err { color:#a3190b; font-weight:600; }
+  .fine { font-size:11.5px; color:var(--ink-dim); flex-basis:100%; }
+
+  .macros { display:grid; grid-template-columns:repeat(6, minmax(120px,1fr)); gap:12px; }
+  .macro { padding:10px 12px 11px; --fillc:var(--teal); }
+  .macro h3 { margin:0 0 5px; font:700 11px/1 var(--f-label); letter-spacing:.16em; text-transform:uppercase; color:var(--teal); }
+  .macro .name { font-weight:600; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .macro .targets { color:var(--ink-dim); font-size:11px; min-height:30px; }
+  .sections { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px,1fr)); gap:14px; align-items:start; }
+  .section { padding:12px 14px 10px; --fillc:var(--signal); }
+  .param { display:grid; grid-template-columns:96px 1fr 124px 20px; gap:8px; align-items:center; padding:3px 0; border-radius:3px; }
+  .param > * { grid-row:1; } .param .pname { grid-column:1; } .param > input, .param > select { grid-column:2; } .param .val { grid-column:3; } .param .lock { grid-column:4; }
+  .param > select { grid-column:2 / 4; }
+  .param .pname { color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .param .val { text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font:11.5px/1.5 var(--f-mono); background:var(--lcd); color:var(--lcd-ink); border-radius:3px; padding:0 6px; box-shadow:inset 0 1px 3px rgba(20,30,8,.4); }
+  .param .val:empty { visibility:hidden; }
+  .param .val small { color:var(--lcd-warn); font-size:inherit; font-weight:700; }
+  .param select { min-width:0; width:100%; }
+  .lock { padding:0 !important; width:20px; height:20px; background:none !important; border:none !important; box-shadow:none; color:var(--ink-dim); opacity:.35; display:flex; align-items:center; justify-content:center; }
+  .param:hover .lock, .lock:focus-visible { opacity:.8; } .param.locked .lock { opacity:1; color:var(--signal-text); } .param.locked .pname { color:var(--signal-text); font-weight:700; }
+  .param.locked { background:rgba(228,83,42,.09); }
+
+  /* faders */
+  input[type=range] { -webkit-appearance:none; appearance:none; width:100%; height:20px; background:transparent; padding:0 !important; margin:0; border:none !important; box-shadow:none !important; --fillc:var(--signal); }
+  .rand input[type=range] { --fillc:var(--signal); }
+  input[type=range]::-webkit-slider-runnable-track { height:6px; border-radius:3px; background:linear-gradient(90deg, var(--fillc) var(--v,0%), #8d9185 var(--v,0%)); box-shadow:inset 0 1px 2px rgba(0,0,0,.45); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:12px; height:20px; margin-top:-7px; border-radius:2px; border:1px solid #5a5e54; background:linear-gradient(90deg, transparent 4.5px, var(--ink) 4.5px, var(--ink) 6.5px, transparent 6.5px), linear-gradient(#f7f8f2,#bfc2b6); box-shadow:0 2px 3px rgba(0,0,0,.35); }
+  input[type=range]::-moz-range-track { height:6px; border-radius:3px; background:#8d9185; }
+  input[type=range]::-moz-range-progress { height:6px; border-radius:3px; background:var(--fillc); }
+  input[type=range]::-moz-range-thumb { width:10px; height:18px; border-radius:2px; border:1px solid #5a5e54; background:linear-gradient(#f7f8f2,#bfc2b6); }
+
+  /* master inserts: the columns of the device's Inserts page, Mixer, Insert 1, Insert 2 */
+  .inscols { display:grid; grid-template-columns:minmax(150px,.55fr) 1fr 1fr; gap:14px; align-items:start; }
+  .inscol { background:#eef0e8; border:1px solid var(--face-line); border-radius:5px; padding:9px 12px 10px; display:flex; flex-direction:column; gap:7px; min-width:0; }
+  .inscol h3 { margin:0; font:700 11px/1 var(--f-label); letter-spacing:.16em; text-transform:uppercase; color:var(--teal); }
+  .inscol > select { width:100%; }
+  .inscol.missing > select { border-color:var(--signal-text); }
+  .insparams { display:flex; flex-direction:column; gap:1px; }
+  .ip { display:grid; grid-template-columns:84px 1fr 96px; gap:8px; align-items:center; padding:2px 0; }
+  .ip .pname { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ip .val { text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font:11.5px/1.5 var(--f-mono); background:var(--lcd); color:var(--lcd-ink); border-radius:3px; padding:0 6px; box-shadow:inset 0 1px 3px rgba(20,30,8,.4); }
+  .ip .val:empty { visibility:hidden; }
+  .ip select { grid-column:2 / 4; min-width:0; width:100%; }
+  .ip input[type=range] { --fillc:var(--teal); }
+  .fxcols { grid-template-columns:1fr 1fr; }
+  .fxcols .ip .val { min-width:0; }
+  .ip.mute label { grid-column:2 / 4; }
+  .insmsg { margin:0; font-size:12px; color:var(--ink-dim); }
+  .insmsg:empty { display:none; }
+  .insmsg.warn { color:var(--warn); }
+  #insnote:empty { display:none; }
+
+  /* keybed */
+  .keybed { position:sticky; bottom:0; z-index:5; background:var(--chassis); border-top:3px solid #14171a; padding:12px 18px 14px; overflow-x:auto; display:flex; justify-content:center; box-shadow:0 -6px 14px rgba(0,0,0,.25); }
+  .legal { max-width:1500px; margin:0 auto; padding:6px 18px 14px; font-size:10.5px; letter-spacing:.04em; color:var(--ink-dim); text-align:center; }
+  .keybed.off { display:none; }
+  .octave { display:inline-flex; align-items:center; gap:4px; }
+  .octave button { min-width:30px; padding-left:8px; padding-right:8px; font-weight:700; }
+  .octave button:disabled { opacity:.4; cursor:default; }
+  .octread { min-width:62px; text-align:center; font:700 11.5px/1 var(--f-label); letter-spacing:.06em; color:var(--ink-dim); }
+  .keys { position:relative; height:92px; flex:none; user-select:none; touch-action:none; background:#0d0f10; padding-top:0; border-radius:0 0 3px 3px; }
+  .key { position:absolute; top:0; cursor:pointer; }
+  .key.w { background:linear-gradient(#fbfaf3,#e4e2d6); height:92px; width:38px; border:1px solid #14171a; border-top:none; border-radius:0 0 4px 4px; color:#6a6e63; font:700 10px/1 var(--f-label); letter-spacing:.08em; text-align:center; padding-top:74px; box-shadow:inset 0 -4px 0 rgba(0,0,0,.08); }
+  .key.b { background:linear-gradient(#34393c,#0f1112); height:58px; width:24px; z-index:2; border:1px solid #000; border-top:none; border-radius:0 0 3px 3px; box-shadow:inset 0 -5px 0 rgba(255,255,255,.07), 0 3px 4px rgba(0,0,0,.5); }
+  .key.down { background:var(--signal) !important; color:var(--on-signal); }
+
+  #discard { background:var(--face); color:var(--ink); border:2px solid var(--ink); border-radius:8px; padding:18px 20px; max-width:420px; }
+  #discard::backdrop { background:rgba(20,23,26,.6); } #discard p { margin:0 0 10px; } #discard label { display:block; margin:0 0 14px; color:var(--ink-dim); } #discard .row { justify-content:flex-end; }
+
+  /* typed values: the readouts of the sliders are text fields on a click (public/valuefield.js) */
+  .val.editable { cursor:text; }
+  .val.editable:hover { outline:1px solid var(--signal); }
+  .val.editable:focus-visible { outline:2px solid var(--signal); }
+  .val .valedit { width:100%; min-width:0; box-sizing:border-box; margin:0; padding:0 !important; border:none !important; outline:none; box-shadow:none !important; background:transparent !important; color:inherit; font:inherit; text-align:right; }
+  .val[data-editing] { outline:2px solid var(--signal); overflow:visible; }
+  .macro .mval { margin-top:4px; text-align:right; white-space:nowrap; font:11.5px/1.5 var(--f-mono); background:var(--lcd); color:var(--lcd-ink); border-radius:3px; padding:0 6px; box-shadow:inset 0 1px 3px rgba(20,30,8,.4); }
+  .amount output.editable { cursor:text; }
+  @media (max-height:760px), (max-width:1100px) { html { scroll-padding:0; } header, .keybed { position:static; } }
+  @media (max-width:1100px) { .deck, .inscols { grid-template-columns:1fr; } header { grid-template-columns:1fr; } .fwbox { justify-content:flex-start; } }
+  @media (max-width:900px) { .macros { grid-template-columns:repeat(3, minmax(100px,1fr)); } }
+  @media (max-width:560px) { .macros { grid-template-columns:repeat(2, 1fr); } .sections { grid-template-columns:1fr; } .param { grid-template-columns:84px 1fr 100px 20px; } header h1 { font-size:24px; white-space:normal; } #dir, #name { width:100%; } }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>FF <span>SYNTH</span> EDITOR</h1>
+  <div class="lcd screen"><span id="engname"></span><span id="engtag" class="engtag" hidden>ff-engine</span><div id="status"></div></div>
+  <div class="fwbox"><span id="fwbadge" class="fwbadge">firmware: ?</span>
+    <!--strict--><label><input type="checkbox" id="strict"> Strict (match my Tracker)</label><!--/strict--></div>
+  <div class="bank"><div class="engines" id="engines"></div></div>
+  <div class="filebar">
+    <div class="grp"><label class="small">Folder</label>
+      <input type="text" id="dir" list="vols" placeholder="Path to a patch folder" spellcheck="false">
+      <datalist id="vols"></datalist><button id="setdir">Set</button></div>
+    <div class="grp"><label class="small">Patch</label>
+      <select id="patches" hidden aria-hidden="true" tabindex="-1"></select>
+      <div class="combo"><input type="text" id="patchsearch" placeholder="Search patches" aria-label="Patch"><ul id="patchlist" class="combolist"></ul></div><span id="stars" class="stars" role="group" aria-label="Rating"><button type="button" data-star="1" aria-label="1 star" aria-pressed="false">★</button><button type="button" data-star="2" aria-label="2 stars" aria-pressed="false">★</button><button type="button" data-star="3" aria-label="3 stars" aria-pressed="false">★</button><button type="button" data-star="4" aria-label="4 stars" aria-pressed="false">★</button><button type="button" data-star="5" aria-label="5 stars" aria-pressed="false">★</button></span><button id="load">Reload</button></div>
+    <div class="grp"><label class="small">Save as</label>
+      <input type="text" id="name" placeholder="name"><button id="save" class="primary">Save</button><button id="init">Init</button><span id="dirtymark" class="warn"></span></div>
+  </div>
+</header>
+<main>
+  <div class="deck">
+    <section class="panel play-panel">
+      <div class="strip">Play</div>
+      <div class="play">
+        <div class="row">
+          <button id="livebtn">Live audio: off</button>
+          <button id="playbtn" class="primary">Play A3</button>
+          <button id="kbtoggle" class="on" aria-pressed="true">Keyboard: on</button>
+          <span class="octave" role="group" aria-label="Keyboard octave"><button id="octdown" type="button" aria-label="Octave down">-</button><span id="octread" class="octread">C3 - C5</span><button id="octup" type="button" aria-label="Octave up">+</button></span>
+          <span id="livestate"></span>
+        </div>
+        <div class="row">
+          <label class="small" for="vel">Velocity</label><input type="number" id="vel" min="1" max="127" value="100">
+          <label class="small" for="hold">Hold s</label><input type="number" id="hold" min="0.1" max="10" step="0.1" value="1">
+          <label class="small" for="len">Length s</label><input type="number" id="len" min="0.2" max="12" step="0.1" value="2.5">
+        </div>
+        <div class="row">
+          <label class="small" for="poly">Polyphony</label>
+          <select id="poly"></select><span id="voices" class="dim"></span>
+        </div>
+        <div class="row midi">
+          <button id="midi">Enable MIDI input</button>
+          <label class="small" for="mididev">Device</label><select id="mididev" disabled><option value="all">All inputs</option></select>
+          <label class="small" for="midich">Channel</label><select id="midich" disabled></select>
+          <span id="midistate" class="dim"></span><span id="midimon" class="dim"></span>
+        </div>
+      </div>
+    </section>
+    <section class="panel rand" id="rand">
+      <div class="strip" style="flex-basis:100%;margin-bottom:0">Randomizer</div>
+      <button id="randgo" class="primary">Randomize (R)</button>
+      <div class="amount"><label class="small" for="randamt">Amount</label><input type="range" id="randamt" min="0" max="100" step="1" value="100"><output id="randamtv" for="randamt">100%</output></div>
+      <div class="amount"><label class="small" for="randseed">Seed</label><input type="text" id="randseed" placeholder="random (Enter rolls)" spellcheck="false" autocomplete="off"></div>
+      <span id="randlast" class="dim"></span>
+      <button id="randundo" disabled>Undo</button><button id="randredo" disabled>Redo</button>
+      <label><input type="checkbox" id="randmacros"> Macros</label>
+      <span class="secs" id="randsecs"></span>
+      <button id="randunlock">Unlock all</button><span id="randlocks" class="dim"></span>
+      <span id="randhint"></span>
+      <div class="hist" id="randhistbox">
+        <div class="histlist"><label class="small">History</label><ol id="randhist" aria-label="Steps of this patch"></ol></div>
+        <div class="recipe">
+          <div class="row"><button id="recipecopy">Copy recipe</button><button id="rollcopy">Copy roll code</button></div>
+          <div class="row"><input type="text" id="recipetext" placeholder="paste a recipe or roll code here" spellcheck="false" autocomplete="off"><button id="recipepaste">Paste recipe</button></div>
+          <div id="recipenote" class="dim"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="macros" id="macros"></div>
+  <div class="sections" id="sections"></div>
+  <div class="master" id="master">
+    <section class="panel" id="fx">
+      <div class="strip">Master delay and reverb</div>
+      <div class="inscols fxcols">
+        <div class="inscol" id="fxdelay"><h3>Delay</h3><p class="insmsg fxengine"></p><div class="insparams"></div></div>
+        <div class="inscol" id="fxreverb"><h3>Reverb</h3><p class="insmsg fxengine"></p><div class="insparams"></div></div>
+      </div>
+    </section>
+    <section class="panel" id="inserts">
+      <div class="strip">Master inserts</div>
+      <div class="inscols">
+        <div class="inscol" id="inscol-mixer">
+          <h3>Mixer</h3>
+          <select id="insmixer" aria-label="Mixer saturation"></select>
+        </div>
+        <div class="inscol" id="inscol-0" data-slot="0"><h3>Insert 1</h3><select class="inssel" aria-label="Insert 1"></select><div class="insparams"></div></div>
+        <div class="inscol" id="inscol-1" data-slot="1"><h3>Insert 2</h3><select class="inssel" aria-label="Insert 2"></select><div class="insparams"></div></div>
+      </div>
+      <p class="fine" id="insnote"></p>
+    </section>
+    <section class="panel" id="limiter">
+      <div class="strip">Master limiter</div>
+      <div class="inscols fxcols">
+        <div class="inscol" id="limcol"><h3>Limiter</h3><div class="insparams"></div><button id="limreset">Device defaults</button></div>
+      </div>
+    </section>
+  </div>
+</main>
+<footer class="legal">Not affiliated with or endorsed by Polyend.</footer>
+<footer class="keybed"><div class="keys" id="keys"></div></footer>
+<dialog id="discard">
+  <p id="discardmsg"></p>
+  <label><input type="checkbox" id="discardquiet"> Don't ask again this session</label>
+  <div class="row"><button id="discardno">Keep editing</button><button id="discardyes" class="primary">Replace</button></div>
+</dialog>
+<script src="/app.js" type="module"></script>
+</body>
+</html>

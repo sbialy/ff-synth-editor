@@ -1,0 +1,86 @@
+# The FF Synth Editor as a static GitHub Pages site (scripts/pages.ts): the wasm host built with emscripten, the four runtime module sets of
+# modules.lock.json downloaded from their GitHub releases and checked by sha256, the page files, all as plain files. No server.
+#
+# Three secrets, set in the repository settings:
+#   MODULES_TOKEN         a token that can read the releases of the repositories behind the engines and effects sets (Contents: read)
+#   MODULES_ENGINES_REPO  owner/name of the repository that holds the engines set (PHZ and PLK, tag engines-v1.2.0)
+#   MODULES_EFFECTS_REPO  owner/name of the repository that holds the effects set (Console and Tube, tag effects-v1.0.0)
+# The two repository names are secrets so that the workflow log masks them. The public sets (engines-os and effects-os, v1.2.0) are read with the same
+# token. A missing set fails the build: the site never ships without PHZ, PLK, Console and Tube.
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  EMSDK_VERSION: 6.0.13 # pinned: the module manifests record the emcc they were built with (scripts/build-wasm.ts EMCC_VERSION)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache emsdk
+        id: emsdk-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/emsdk
+          key: emsdk-${{ env.EMSDK_VERSION }}-${{ runner.os }}
+
+      - name: Install emsdk
+        if: steps.emsdk-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install "$EMSDK_VERSION"
+          "$RUNNER_TEMP/emsdk/emsdk" activate "$EMSDK_VERSION"
+
+      - name: Check the emcc version
+        run: |
+          "$RUNNER_TEMP/emsdk/upstream/emscripten/emcc" --version | head -1 | grep -F "$EMSDK_VERSION"
+
+      - name: Build the wasm host
+        env:
+          EMSDK: ${{ runner.temp }}/emsdk
+        run: bun scripts/build-wasm.ts runtime
+
+      - name: Fetch the runtime modules (sha256 checked against modules.lock.json)
+        env:
+          GH_TOKEN: ${{ secrets.MODULES_TOKEN }}
+          MODULES_ENGINES_REPO: ${{ secrets.MODULES_ENGINES_REPO }}
+          MODULES_EFFECTS_REPO: ${{ secrets.MODULES_EFFECTS_REPO }}
+        run: bun scripts/modules.ts --out build/pages-modules
+
+      - name: Build the site
+        run: bun scripts/pages.ts dist/pages --modules build/pages-modules --require-modules
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/pages
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

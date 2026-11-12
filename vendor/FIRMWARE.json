@@ -1,0 +1,30 @@
+{
+  "name": "tracker-ff",
+  "tag": "tracker-ff-v1.2.0",
+  "version": "1.2.0",
+  "commit": "9ef9dc54c3953d7ac8777b3e99383f5f8ccc992d",
+  "tagObject": "9c3b9b80fb4e75b50509e8cf0d4a5ff5b1bf5cb9",
+  "commitDate": "2026-11-09",
+  "label": "tracker-ff 1.2.0",
+  "engines": ["ACD", "FAT", "VAP", "WTFM", "PERC", "CHIP", "JU6", "PHZ", "FM4", "DTYPE", "CSTYPE", "ATYPE", "TTYPE", "8TYPE", "HANDTYPE", "BTYPE", "ARCTYPE", "PLK"],
+  "builtinEngines": ["ACD", "FAT", "VAP", "WTFM", "PERC", "CHIP"],
+  "defaultEngines": ["ACD", "FAT", "VAP", "WTFM"],
+  "releaseEngines": ["ACD", "FAT", "VAP", "WTFM", "PERC", "CHIP", "JU6", "PHZ", "FM4", "DTYPE", "CSTYPE", "ATYPE", "TTYPE", "8TYPE", "HANDTYPE", "BTYPE", "ARCTYPE", "PLK"],
+  "notInRelease": [],
+  "modules": {
+    "repo": "sbialy/tracker-engines-os",
+    "tag": "v1.2.0",
+    "commit": "f20ded8ad84e8acb6ea61f3c8b7c4fa7653af718",
+    "engines": ["JU6", "FM4", "BTYPE", "DTYPE", "CSTYPE", "ATYPE", "TTYPE", "8TYPE", "HANDTYPE", "ARCTYPE"],
+    "files": ["synth-open/engine_ju6.cpp", "synth-open/ot-synths/ju6/ju6.cpp", "synth-open/engine_fm4.cpp", "synth-open/ot-synths/fm4/fm4.cpp", "synth-open/engine_btype.cpp", "synth-open/ot-synths/btype/btype.cpp", "synth-open/engine_dtype.cpp", "synth-open/ot-synths/dtype/dtype.cpp", "synth-open/engine_cstype.cpp", "synth-open/ot-synths/cstype/cstype.cpp", "synth-open/engine_atype.cpp", "synth-open/ot-synths/atype/atype.cpp", "synth-open/engine_ttype.cpp", "synth-open/ot-synths/ttype/ttype.cpp", "synth-open/engine_eight.cpp", "synth-open/ot-synths/eight/eight.cpp", "synth-open/engine_hand.cpp", "synth-open/ot-synths/hand/hand.cpp", "synth-open/engine_arc.cpp", "synth-open/ot-synths/arc/arc.cpp"]
+  },
+  "private": {
+    "repo": "ff-engines",
+    "tag": "engines-v1.2.0",
+    "commit": "3ec1380b9ffc9f4db990cfee72f4d4a6a5bf2e8e",
+    "override": {"engine": "PLK", "commit": "e2ce0b5fe5ae8e97a68652b8db5f90772fd7dbef", "version": "1.1.0", "wasm_sha256": "f4cfd3ce862016a04d67a956ba32261f5a75b93e003f5b8d0b550141efd4db62", "plg_sha256": "fcabdc0ac8b540f02b3c62b1bc6749a08d1486e899a7629d57411aa018500bc0"},
+    "engines": ["PHZ", "PLK"],
+    "files": ["synth-open/engine_phz.cpp", "synth-open/phz/phz.cpp", "synth-open/phz/phz.h", "synth-open/engine_pluck.cpp", "synth-open/pluck/pluck.cpp", "synth-open/pluck/pluck.h"]
+  },
+  "sources": ["synth-open/open_synth.cpp", "synth-open/open_cold.cpp", "synth-open/open_patchio.cpp", "synth-open/ot/audio/governor.cpp", "synth-open/ot/audio/cpu_meter.cpp", "synth-open/engine_acd.cpp", "synth-open/ot/audio/engines/acd.cpp", "synth-open/engine_fat.cpp", "synth-open/ot/audio/engines/fat.cpp", "synth-open/engine_vap.cpp", "synth-open/ot/audio/engines/vap.cpp", "synth-open/engine_wtfm.cpp", "synth-open/ot/audio/engines/wtfm.cpp", "synth-open/engine_perc.cpp", "synth-open/ot/audio/engines/perc.cpp", "synth-open/engine_chip.cpp", "synth-open/engine_ju6.cpp", "synth-open/ot-synths/ju6/ju6.cpp", "synth-open/engine_fm4.cpp", "synth-open/ot-synths/fm4/fm4.cpp", "synth-open/engine_btype.cpp", "synth-open/ot-synths/btype/btype.cpp", "synth-open/engine_dtype.cpp", "synth-open/ot-synths/dtype/dtype.cpp", "synth-open/engine_cstype.cpp", "synth-open/ot-synths/cstype/cstype.cpp", "synth-open/engine_atype.cpp", "synth-open/ot-synths/atype/atype.cpp", "synth-open/engine_ttype.cpp", "synth-open/ot-synths/ttype/ttype.cpp", "synth-open/engine_eight.cpp", "synth-open/ot-synths/eight/eight.cpp", "synth-open/engine_hand.cpp", "synth-open/ot-synths/hand/hand.cpp", "synth-open/engine_arc.cpp", "synth-open/ot-synths/arc/arc.cpp", "core/synth/engines/ChiptuneSynthVoice.cpp", "synth-open/engine_phz.cpp", "synth-open/phz/phz.cpp", "synth-open/engine_pluck.cpp", "synth-open/pluck/pluck.cpp"]
+}

@@ -1,0 +1,205 @@
+// Copied from OpenTracker 3.x (https://github.com/sandlbn/polyend-tracker-re, branch v3_fixes, commit 789d55a4c5e8), Apache-2.0,
+// see licenses/LICENSE-OpenTracker-Apache-2.0.txt. Not modified, except this notice (Apache-2.0 section 4b).
+// Replaces the 2.x copy (927b1516385e): the 3.x interface only adds SynthHeld, SynthVoice::cutoffOct, a const
+// SynthSlotScratch::as() and the optional ISynthEngine::slotPost() (used by JU6's chorus).
+// Synth engine interface (2.x M3, docs/MINI_PLAN.md §3, §4 WP-E) [OT].
+//
+// The framework (synth_bank.h) owns slots, the voice pool, macros, pitch FX,
+// gain and mixing. An engine is the DSP of one Tracker Mini model (spec 21
+// §8: ACD, FAT, VAP, WTFM, PERC). It is a stateless singleton: every voice
+// keeps its state in SynthVoice::state, every slot in SynthSlotScratch.
+//
+// Contract for engines (WP-F):
+//  - All calls come from the audio context: no allocation, no I/O, no locks.
+//  - Parameters are the spec 21 §8 stored values (engineering units, enum
+//    indices as floats), already clamped to their range and with macros
+//    M1..M6 applied (SynthParams). Read p.end[i] at block rate, or ramp
+//    p.start[i] -> p.end[i] across the block for continuous parameters
+//    (p.moving says whether any value changed this block).
+//  - The engine's "Volume" parameter (patchVolumeParam) and the Volume FX /
+//    Macro 7 are applied by the framework through the gain ramp passed to
+//    render(): engines must NOT apply Volume themselves.
+//  - Pitch: SynthNote::pitch is the note in semitones (MIDI numbering, 69 =
+//    A 440 Hz; synthPitchHz). Patch glide (Glide Mode / Glide Time) is the
+//    engine's job, using SynthNote::overlap; step-FX pitch modulation (Slide,
+//    Glide FX, Tune, Micro-tune) arrives in SynthVoice::bend (semitones,
+//    ramp bendStart -> bend over the block). Sounding pitch = the engine's
+//    (glided) note pitch + bend. A note with a Glide FX (SynthNote::fxGlide)
+//    skips the patch glide: one mechanism owns the start pitch.
+//  - render() ADDS kBlock frames into L and R (the slot bus, before slot gain
+//    / pan / sends), multiplied by g0 + i * gInc, and returns false once the
+//    voice is silent for good (the framework frees it). It also stores the
+//    amplitude-envelope level (0..1) in SynthVoice::level for voice stealing.
+//  - An engine with a filter adds SynthVoice::cutoffOct (the Performance
+//    filter offset of the note's track, octaves) to its cutoff octave term,
+//    inside its own clamp; 0 = the plain patch.
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
+#include "audio/audio_tables.h"
+#include "model/synth_patch.h"
+
+namespace ot {
+namespace audio {
+
+constexpr int kSynthSlots = 3;                 // Synth 1..3 (instruments 64..66)
+constexpr int kSynthMaxVoices = 8;             // pool records; Config budget 1..8
+constexpr int kSynthDefaultVoices = 4;         // OPTIMIZATION_2X item 10 (6 after OP-3..5)
+constexpr int kSynthParamMax = kPatchMaxParams;   // 84 (PERC)
+constexpr int kSynthVoiceStateBytes = 128;     // engine state per voice (SRAM)
+constexpr int kSynthSlotScratchBytes = 384;    // engine state per slot (SRAM)
+// Internal test engine id (not a Tracker Mini id, never written to a patch).
+constexpr int32_t kSynthEngineTest = 0x7E;
+
+// [3.x] The notes held on a slot (SynthBank's held-note registry, one note
+// per track: sequencer, audition and MIDI input tracks): how many, the lowest
+// and the highest (A-Type's Duo keyboard), and whether the slot plays one
+// voice (polyphony 1 at the last note event). count 0: none (low / high stale).
+struct SynthHeld {
+    uint8_t count = 0;
+    uint8_t low = 0;
+    uint8_t high = 0;
+    uint8_t mono = 0;
+};
+
+// Effective parameters of one slot for the current block.
+struct SynthParams {
+    int32_t engine = 0;
+    int count = 0;                    // parameters of the engine
+    bool moving = false;              // some start[i] != end[i] this block
+    SynthHeld held;                   // [3.x] the slot's held notes (kept current at every note event)
+    uint32_t serial = 0;              // changes whenever an end[] value changes
+    float start[kSynthParamMax] = {}; // value at the block start
+    float end[kSynthParamMax] = {};   // value at the block end (the target)
+    // Ramp helper: start value and per-frame increment of parameter i.
+    float ramp(int i, float& inc) const {
+        inc = (end[i] - start[i]) * (1.0f / float(kBlock));
+        return start[i];
+    }
+};
+
+// One note start.
+struct SynthNote {
+    float pitch = 60.0f;   // semitones; the note (Tune FX not included: see bend)
+    float velocity = 1.0f; // Macro 7 value 0..1 (Volume FX / 100; 1 without)
+    uint8_t note = 60;     // 0..127
+    // True when a still-gated voice of a polyphony-1 slot is reused for the
+    // new note (legato / "Overlap" glide modes). A reused voice that was in
+    // its release has overlap = false and reused = true.
+    bool overlap = false;
+    bool reused = false;
+    // A Glide step FX (19) owns this note's pitch start: the framework's bend
+    // starts at the track's previous pitch, so the engine must not add its
+    // patch glide on top (it starts at `pitch`).
+    bool fxGlide = false;
+};
+
+// Per-slot engine scratch (per-block coefficient caches, PERC drum state).
+struct alignas(8) SynthSlotScratch {
+    // Zeroed: engines may keep fields across slotReset() (PERC's noise seed)
+    // and must never read what the memory held before.
+    uint8_t bytes[kSynthSlotScratchBytes] = {};
+    template <class T>
+    T& as() {
+        static_assert(sizeof(T) <= kSynthSlotScratchBytes, "slot state too large");
+        return *reinterpret_cast<T*>(bytes);
+    }
+    template <class T>
+    const T& as() const {
+        static_assert(sizeof(T) <= kSynthSlotScratchBytes, "slot state too large");
+        return *reinterpret_cast<const T*>(bytes);
+    }
+};
+
+// One pool voice as an engine sees it. Fields above `state` are written by
+// the framework (read-only for engines) except `level`.
+struct alignas(8) SynthVoice {
+    SynthSlotScratch* slotScratch = nullptr;   // the owning slot's scratch
+    float bend = 0.0f;         // step-FX pitch offset at the block end (semitones)
+    float bendStart = 0.0f;    // ... at the block start
+    float level = 0.0f;        // engine: amplitude-envelope level 0..1
+    uint8_t slot = 0;          // 0..2
+    uint8_t note = 0;
+    bool gate = false;         // key held (false after noteOff)
+    // Framework: this block is the voice's last (stolen / cut: the gain ramp
+    // falls to 0 and the record is freed after it). Engines that keep state
+    // beyond the voice (PERC's kit) release it here.
+    bool fading = false;
+    // Framework: Performance filter offset of the note's track, in octaves
+    // (issue #23). Engines with a filter add it to their cutoff octave term,
+    // inside their own clamp; 0 when the track's Performance FX are off.
+    float cutoffOct = 0.0f;
+    alignas(8) uint8_t state[kSynthVoiceStateBytes];
+    template <class T>
+    T& as() {
+        static_assert(sizeof(T) <= kSynthVoiceStateBytes, "voice state too large");
+        return *reinterpret_cast<T*>(state);
+    }
+};
+
+class ISynthEngine {
+public:
+    virtual ~ISynthEngine() = default;
+    virtual int32_t id() const = 0;            // SynthEngineId
+    virtual const char* name() const = 0;      // "ACD", ...
+    // Once per block for every slot with sounding voices, before its voices
+    // render (shared coefficients into the slot scratch). Optional.
+    virtual void prepare(SynthSlotScratch& slot, const SynthParams& p) { (void)slot; (void)p; }
+    // A slot starts using this engine (patch / model change, project load).
+    virtual void slotReset(SynthSlotScratch& slot) { (void)slot; }
+    // Song tempo in BPM (the sequencer's smoothed tempo), once per block
+    // before prepare() for every slot with sounding voices: tempo-synced
+    // LFOs / delays follow the song. Optional.
+    virtual void setTempo(float bpm) { (void)bpm; }
+    // Per-voice send outputs (PERC per-drum Delay / Reverb sends). Called
+    // once per block before the slot's voices render, and with nullptr after
+    // them. delay / reverb are the main mono send buses (kBlock floats,
+    // nullptr = that send is off); gainD / gainR are the slot gain x the
+    // Global Mixer delay / reverb level for that block. The engine adds its
+    // own per-voice send amounts, pre slot pan. Returns false when the engine
+    // has no per-voice sends (the framework then never calls it again for
+    // this block). Optional.
+    virtual bool setSendTap(int slot, float* delay, float* reverb, float gainD, float gainR) {
+        (void)slot; (void)delay; (void)reverb; (void)gainD; (void)gainR;
+        return false;
+    }
+    // Start a note. A fresh voice has zeroed state; a reused one (n.reused)
+    // keeps its state (continue envelopes / glide from where they are).
+    virtual void noteOn(SynthVoice& v, const SynthParams& p, const SynthNote& n) = 0;
+    // Gate off: enter the release.
+    virtual void noteOff(SynthVoice& v, const SynthParams& p) = 0;
+    // Add one block into L / R (see the contract above). false = finished.
+    virtual bool render(SynthVoice& v, const SynthParams& p, float g0, float gInc, float* L, float* R) = 0;
+    // [3.x] The engine's own slot effect (JU6's chorus): once per block for
+    // every slot with sounding voices, after they rendered, on slot `slot`'s
+    // bus L / R (kBlock frames: the voices' sum, before slot gain / pan /
+    // sends / Width), in place. Returns true while the effect has a tail:
+    // the slot then keeps rendering (prepare() and this call, on a silent
+    // bus) after its last voice ended, until it returns false. An engine
+    // change or stopAll() drops the tail. The resample tap of a track and a
+    // note's own Delay / Reverb send take that note's voice before this
+    // effect (dry); the slot's mix and its sends carry it. Optional.
+    virtual bool slotPost(int slot, SynthSlotScratch& sc, const SynthParams& p, float* L, float* R) {
+        (void)slot; (void)sc; (void)p; (void)L; (void)R;
+        return false;
+    }
+};
+
+// Engine registry keyed by the Tracker Mini engine id (synth_registry.cpp).
+// nullptr = the model is not available in this build (FAT until 2.1, WTFM until 2.2):
+// such a slot loads and saves its patch but stays silent.
+ISynthEngine* synthEngineFor(int32_t engineId);
+// Tests: report an engine id as "not available" (every Mini model has an
+// engine since 2.2; the read-only "not available" path stays testable).
+void synthEngineHide(int32_t engineId, bool hide);
+
+// INTERNAL sine + envelope engine (tests, benches, sim until WP-F).
+ISynthEngine* synthTestEngine();
+
+// Note pitch (semitones, 69 = 440 Hz) -> Hz.
+float synthPitchHz(float pitch);
+
+}  // namespace audio
+}  // namespace ot

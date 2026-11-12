@@ -1,0 +1,20 @@
+# OpenTracker module manifest (core: docs/PLAN_3X.md §7.2, tools/profile.py).
+id      = "CST1"
+name    = "CS-Type synth"
+version = "1.0.0"
+api     = 1
+entry   = "cstypeModule"
+caps    = ["synthEngine"]
+sources = ["cstype.cpp", "cstype_desc.cpp", "cstype_module.cpp"]
+tests   = ["engine_cstype_test.cpp"]
+
+flash_max_bytes   = 15000
+sram_audio_bytes  = 0                 # no static buffers
+sdram_bytes       = 0
+fastrun_bytes     = 0
+cpu_insn_per_unit = 36000             # bench-m4 limit per voice (cstype.unit ~34.2k worst; plan 28000, see PLAN_CLASSIC status)
+max_units         = 8
+bench             = "cstype"
+engines           = [131]             # 0x83: a module engine (not a Tracker Mini model)
+bench_sources     = ["cstype_bench.cpp"]
+bench_entry       = "cstypeBench"

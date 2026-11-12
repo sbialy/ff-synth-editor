@@ -1,0 +1,20 @@
+# OpenTracker module manifest (core: docs/PLAN_3X.md §7.2, tools/profile.py).
+id      = "HND1"
+name    = "Hand-Type synth"
+version = "1.0.0"
+api     = 1
+entry   = "handModule"
+caps    = ["synthEngine"]
+sources = ["hand.cpp", "hand_desc.cpp", "hand_module.cpp"]
+tests   = ["engine_hand_test.cpp"]
+
+flash_max_bytes   = 12500             # measured 12,106 B (plan 10,500: owner decision)
+sram_audio_bytes  = 0                 # no static buffers (the tables are const)
+sdram_bytes       = 0
+fastrun_bytes     = 0
+cpu_insn_per_unit = 12000             # bench-m4 limit per voice (hand.unit: twin pulse, sweep, arp, vibrato)
+max_units         = 8
+bench             = "hand"
+engines           = [135]             # 0x87: a module engine (not a Tracker Mini model)
+bench_sources     = ["hand_bench.cpp"]
+bench_entry       = "handBench"

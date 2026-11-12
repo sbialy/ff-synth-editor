@@ -1,0 +1,95 @@
+{
+ "plg_sha256": "c42a30c02d88f97f4622a567775f101432edb4842302fe276e4109b6d3fc21ca",
+ "blocks": 64,
+ "harness": "synth-open/plug/emu_plug.py",
+ "scenarios": {
+  "default": {
+   "params": [],
+   "param_at": [],
+   "int16_input": false,
+   "emu_checksum": "3b1f3dc5"
+  },
+  "nd": {
+   "params": [
+    [
+     0,
+     2.0
+    ],
+    [
+     1,
+     60.0
+    ],
+    [
+     2,
+     8.0
+    ],
+    [
+     3,
+     4.0
+    ],
+    [
+     4,
+     70.0
+    ],
+    [
+     5,
+     80.0
+    ]
+   ],
+   "param_at": [
+    [
+     5,
+     1,
+     20.0
+    ]
+   ],
+   "int16_input": false,
+   "emu_checksum": "32d91bc5"
+  },
+  "asym": {
+   "params": [
+    [
+     0,
+     3.0
+    ],
+    [
+     1,
+     90.0
+    ],
+    [
+     4,
+     40.0
+    ]
+   ],
+   "param_at": [
+    [
+     10,
+     0,
+     0.0
+    ],
+    [
+     20,
+     0,
+     3.0
+    ]
+   ],
+   "int16_input": false,
+   "emu_checksum": "400d8dc5"
+  },
+  "bus": {
+   "params": [
+    [
+     1,
+     75.0
+    ],
+    [
+     4,
+     55.0
+    ]
+   ],
+   "param_at": [],
+   "int16_input": true,
+   "emu_checksum": "4a2e37c5"
+  }
+ }
+}

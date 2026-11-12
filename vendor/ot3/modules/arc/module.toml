@@ -1,0 +1,20 @@
+# OpenTracker module manifest (core: docs/PLAN_3X.md §7.2, tools/profile.py).
+id      = "ARC1"
+name    = "Arc-Type synth"
+version = "1.0.0"
+api     = 1
+entry   = "arcModule"
+caps    = ["synthEngine"]
+sources = ["arc.cpp", "arc_desc.cpp", "arc_module.cpp"]
+tests   = ["engine_arc_test.cpp"]
+
+flash_max_bytes   = 19500             # measured 19,252 B (plan 15,500: owner decision)
+sram_audio_bytes  = 0                 # no static buffers (the tables are const)
+sdram_bytes       = 0
+fastrun_bytes     = 0
+cpu_insn_per_unit = 26000             # bench-m4 limit per voice (arc.unit: feedback, every operator looping, LFO, ladder, aux noise, arp)
+max_units         = 8
+bench             = "arc"
+engines           = [137]             # 0x89: a module engine (not a Tracker Mini model)
+bench_sources     = ["arc_bench.cpp"]
+bench_entry       = "arcBench"

@@ -1,0 +1,299 @@
+poly-editor overlay on the tracker-ff firmware sources (scripts/vendor.sh applies it with patch -p1 to vendor/poly, after the byte for byte copy).
+It keeps only what the editor really does beyond the firmware, and nothing the firmware already has (ids, stored numbers, engine tables, the
+.patch codec are all the firmware's own at the tag: test/sync.test.ts checks that). Three things, each marked "poly-editor overlay" in the code:
+  1. open_engine.h, engine_atype.cpp, open_synth.cpp: a held-note registry (SynthParams::held) and Poly 1 note priority (A-Type Priority
+     Last / Low / High, A-Type Keyboard Duo). The firmware never fills SynthParams::held, so on the Tracker these two do nothing.
+  2. open_engine.h, open_synth.cpp: kEditorMaxVoices 8 voice records per instrument (the firmware has kMaxVoicesPerInstrument 4 and
+     EngineDef::maxVoices 4, 1 for PERC and T-Type). EngineDef::maxVoices is left as the firmware says so the host can offer Strict mode.
+  3. open_load.h, open_synth.cpp: open::voicesHeld() for the stream frame header (keys down) and open::setHeldNotes(), which Strict mode
+     (match my Tracker) uses to switch the held-note registry off, so A-Type then behaves as the firmware's.
+No hunk touches the .patch codec (open_patchio.cpp): the editor saves and loads through the firmware's own code. The ids an older editor
+build wrote (CHIP 0x10, D-Type 0x82) are mapped in host/poly_host.cpp before the codec sees them.
+diff -ruN a/synth-open/engine_atype.cpp b/synth-open/engine_atype.cpp
+--- a/synth-open/engine_atype.cpp
++++ b/synth-open/engine_atype.cpp
+@@ -122,6 +122,9 @@
+     kMaxVoicesPerInstrument,
+     &ot::audio::atype::engine,
+     false,
++    nullptr, // poly-editor overlay: no plugin instance (EngineDef::inst), so the two fields below can follow
++    kFlagNotePriority, // poly-editor overlay: held notes decide which note sounds at Poly 1 (Priority parameter), see open_synth.cpp
++    ot::audio::atype::kPriority,
+ };
+ 
+ } // namespace polysynth::open
+diff -ruN a/synth-open/open_engine.h b/synth-open/open_engine.h
+--- a/synth-open/open_engine.h
++++ b/synth-open/open_engine.h
+@@ -92,6 +92,9 @@
+ // A slot's engine caps it lower with EngineDef::maxVoices (PERC and TTYPE: 1). The shared pool (open_load.h)
+ // still limits what sounds at once.
+ constexpr int kMaxVoicesPerInstrument = 4;
++// poly-editor overlay: voice records per instrument in the editor, a computer-only preview above the firmware's kMaxVoicesPerInstrument.
++// EngineDef::maxVoices stays what the firmware says (open_synth.cpp only applies it to one voice engines, the host to Strict mode).
++constexpr int kEditorMaxVoices = 8;
+ 
+ struct EngineDef
+ {
+@@ -109,8 +112,13 @@
+     bool slotFx;            // the engine has a slot effect (ISynthEngine::slotPost): the shim renders its voices
+                             // into a private bus, runs the effect on it and adds the result to the mix
+     ot::audio::ISynthEngine* inst = nullptr;   // a plugin engine (plug_synth.cpp: the PLUG_EXT_SYNTH adapter), else engine()
++    uint8_t flags = 0;      // poly-editor overlay: kFlagNotePriority (OpenTracker's SynthDescriptor::flags bit), only A-Type sets it
++    int8_t priorityParam = -1; // poly-editor overlay: with kFlagNotePriority, the parameter that picks Last / Low / High
+ };
+ 
++// poly-editor overlay: the same bit as OpenTracker's mod::kSynthFlagNotePriority
++constexpr uint8_t kFlagNotePriority = 1u << 1;
++
+ // The engine of a definition. nullptr for a missing engine's placeholder (missingDef): the part stays silent.
+ inline ot::audio::ISynthEngine* engineOf(const EngineDef* d)
+ {
+diff -ruN a/synth-open/open_load.h b/synth-open/open_load.h
+--- a/synth-open/open_load.h
++++ b/synth-open/open_load.h
+@@ -146,6 +146,8 @@
+ int voiceBudget();
+ int voiceCap();       // budget lowered by the governor
+ int voicesSounding(); // synth voices counted by the pool (stolen ones excluded)
++int voicesHeld();     // poly-editor overlay: of those, the ones whose key is still down
++void setHeldNotes(bool on); // poly-editor overlay: the held-note registry (A-Type priority and Duo) is editor only, false = as the firmware (default true)
+ uint32_t governorCuts();
+ 
+ } // namespace polysynth::open
+diff -ruN a/synth-open/open_synth.cpp b/synth-open/open_synth.cpp
+--- a/synth-open/open_synth.cpp
++++ b/synth-open/open_synth.cpp
+@@ -50,13 +50,15 @@
+ {
+ using open::EngineDef;
+ using open::kMaxParams;
+-using open::kMaxVoicesPerInstrument;
++using open::kEditorMaxVoices;
+ using open::kVelocityMacro;
+ using open::OpenPatch;
+ 
+ namespace
+ {
+ 
++// poly-editor overlay: the held-note registry is editor only, switched off by Strict mode (open::setHeldNotes)
++bool gHeldNotes = true;
+ // Pitch bend range in semitones for full deflection (+-8192). The tracker's Micro-tune FX (-99..+99
+ // cents) sends the full 14 bit range, so 1 semitone makes the FX read in cents. Own choice.
+ constexpr float kBendRange = 1.0f;
+@@ -222,7 +224,7 @@
+     int getVoiceCount() const override { return voiceCount; }
+     void setVoiceCount(int count) override
+     {
+-        voiceCount = std::clamp(count, 0, kMaxVoicesPerInstrument);
++        voiceCount = std::clamp(count, 0, kEditorMaxVoices);
+         if (voiceCount == 0)
+         {
+             cutAll();
+@@ -411,6 +413,8 @@
+ 
+     void cutAll()
+     {
++        nHeld = 0;
++        params.held = ot::audio::SynthHeld{};
+         for (auto& v : voices)
+         {
+             v.on = false;
+@@ -508,7 +512,9 @@
+     Voice* pickVoice(bool& reused)
+     {
+         reused = false;
+-        const int n = std::clamp(voiceCount, 1, def ? def->maxVoices : 1);
++        // poly-editor overlay: the editor's polyphony setting is the cap (up to 8 records), except for a one voice engine (EngineDef::maxVoices 1:
++        // the PERC and T-Type kits live in the slot scratch). Strict mode keeps the setting at the firmware's EngineDef::maxVoices in the host.
++        const int n = std::clamp(voiceCount, 1, def && def->maxVoices <= 1 ? 1 : kEditorMaxVoices);
+         Voice* mine = nullptr;
+         if (n == 1)
+         {
+@@ -536,7 +542,7 @@
+                 return mine;
+             }
+             Voice* victim = host.victim();
+-            if (victim && (victim < voices || victim >= voices + kMaxVoicesPerInstrument))
++            if (victim && (victim < voices || victim >= voices + kEditorMaxVoices))
+             {
+                 victim->v.fading = true;
+             }
+@@ -559,6 +565,80 @@
+             }
+         }
+         return best;
++    }
++
++    // poly-editor overlay: the notes held on this slot (OpenTracker's SynthBank registry, one note per key here): ISynthEngine
++    // engines read them as SynthParams::held (A-Type's Keyboard Duo), and with kSynthFlagNotePriority at polyphony 1 they
++    // decide which note sounds (priorityParam: 0 Last, 1 Low, 2 High): a losing note is held silently, the release of the
++    // sounding note returns the voice to the winner of the notes still held.
++    void heldAdd(uint8_t note, uint8_t velocity)
++    {
++        heldRemove(note);
++        if (nHeld < kMaxHeld)
++        {
++            heldNote[nHeld] = note;
++            heldVel[nHeld] = velocity;
++            nHeld++;
++        }
++    }
++    void heldRemove(uint8_t note)
++    {
++        for (int i = 0; i < nHeld; i++)
++        {
++            if (heldNote[i] == note)
++            {
++                for (int j = i + 1; j < nHeld; j++)
++                {
++                    heldNote[j - 1] = heldNote[j];
++                    heldVel[j - 1] = heldVel[j];
++                }
++                nHeld--;
++                return;
++            }
++        }
++    }
++    void heldPublish()
++    {
++        if (!gHeldNotes) // Strict (match my Tracker): the firmware never fills SynthParams::held
++        {
++            params.held = ot::audio::SynthHeld{};
++            return;
++        }
++        ot::audio::SynthHeld h;
++        h.count = uint8_t(nHeld);
++        h.mono = voiceCount == 1;
++        h.low = 255;
++        h.high = 0;
++        for (int i = 0; i < nHeld; i++)
++        {
++            h.low = std::min(h.low, heldNote[i]);
++            h.high = std::max(h.high, heldNote[i]);
++        }
++        if (!nHeld)
++        {
++            h.low = 0;
++        }
++        params.held = h;
++    }
++    bool priorityMode() const { return gHeldNotes && voiceCount == 1 && def && (def->flags & open::kFlagNotePriority); }
++    int heldWinner() const // index into heldNote of the note that should sound, -1 none
++    {
++        const int mode = def->priorityParam >= 0 ? int(params.end[def->priorityParam] + 0.5f) : 0;
++        int w = -1;
++        for (int i = 0; i < nHeld; i++)
++        {
++            if (w < 0)
++            {
++                w = i;
++                continue;
++            }
++            const int d = mode == 1 ? int(heldNote[w]) - int(heldNote[i]) : (mode == 2 ? int(heldNote[i]) - int(heldNote[w]) : 0);
++            if (d >= 0) // later keys win ties (Last)
++            {
++                w = i;
++            }
++        }
++        return w;
+     }
+ 
+     void noteOn(uint8_t note, uint8_t velocity)
+@@ -572,6 +652,21 @@
+             modNoteOnAll();
+         }
+         refreshParams();
++        heldAdd(note, velocity);
++        heldPublish();
++        if (priorityMode())
++        {
++            const int w = heldWinner();
++            if (w >= 0 && heldNote[w] != note)
++            {
++                return; // held silently
++            }
++        }
++        startVoice(note, velocity);
++    }
++
++    void startVoice(uint8_t note, uint8_t velocity)
++    {
+         bool reused;
+         Voice* v = pickVoice(reused);
+         if (!v)
+@@ -607,6 +702,17 @@
+         if (!engine)
+         {
+             return;
++        }
++        heldRemove(note);
++        heldPublish();
++        if (priorityMode() && nHeld > 0 && voices[0].on && voices[0].v.gate && voices[0].v.note == note)
++        {
++            const int w = heldWinner(); // back to the winner of the notes still held
++            if (w >= 0)
++            {
++                startVoice(heldNote[w], heldVel[w]);
++                return;
++            }
+         }
+         for (auto& v : voices)
+         {
+@@ -621,6 +727,11 @@
+ 
+     void releaseAll()
+     {
++        nHeld = 0;
++        if (engine)
++        {
++            heldPublish();
++        }
+         if (!engine)
+         {
+             return;
+@@ -656,7 +767,11 @@
+     float modOut[open::kModSlots] = {};
+     uint8_t modSerial = 0;
+     float bend = 0.0f; // pitch bend in semitones, applied to every voice (SynthVoice::bend)
+-    Voice voices[kMaxVoicesPerInstrument];
++    static constexpr int kMaxHeld = 16;
++    uint8_t heldNote[kMaxHeld] = {};
++    uint8_t heldVel[kMaxHeld] = {};
++    int nHeld = 0;
++    Voice voices[kEditorMaxVoices];
+ };
+ 
+ // ------------------------------------------------------------------- synth
+@@ -691,6 +806,21 @@
+         }
+         return n;
+     }
++    int held() const // poly-editor overlay: voices whose key is down (gate on, not stolen)
++    {
++        int n = 0;
++        for (const auto& i : instruments)
++        {
++            if (i)
++            {
++                for (const Voice& v : static_cast<OpenInstrument&>(*i).voiceSpan())
++                {
++                    n += v.on && !v.v.fading && v.v.gate;
++                }
++            }
++        }
++        return n;
++    }
+     Voice* victim() override
+     {
+         Voice* best = nullptr;
+@@ -992,6 +1122,8 @@
+ int open::voiceBudget() { return gActive ? gActive->governor.budget() : 0; }
+ int open::voiceCap() { return gActive ? gActive->governor.cap() : 0; }
+ int open::voicesSounding() { return gActive ? gActive->sounding() : 0; }
++int open::voicesHeld() { return gActive ? gActive->held() : 0; }
++void open::setHeldNotes(bool on) { gHeldNotes = on; }
+ uint32_t open::governorCuts() { return gActive ? gActive->governor.cuts() : 0; }
+ 
+ } // namespace polysynth
+\ No newline at end of file

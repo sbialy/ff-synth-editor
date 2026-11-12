@@ -1,0 +1,20 @@
+# OpenTracker module manifest (core: docs/PLAN_3X.md §7.2, tools/profile.py).
+id      = "FM4S"
+name    = "FM4 synth"
+version = "1.0.0"
+api     = 1
+entry   = "fm4Module"
+caps    = ["synthEngine"]
+sources = ["fm4.cpp", "fm4_desc.cpp", "fm4_module.cpp"]
+tests   = ["engine_fm4_test.cpp"]
+
+flash_max_bytes   = 14000
+sram_audio_bytes  = 0
+sdram_bytes       = 0
+fastrun_bytes     = 0
+cpu_insn_per_unit = 22000             # bench-m4 limit per voice (fm4.unit ~19.5k worst)
+max_units         = 8
+bench             = "fm4"
+engines           = [128]             # 0x80: a module engine (not a Tracker Mini model)
+bench_sources     = ["fm4_bench.cpp"]
+bench_entry       = "fm4Bench"

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FF SYNTH EDITOR - runtime modules</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 24px; max-width: 900px; color: #222 }
+  h1 { font-size: 18px }
+  section { border: 1px solid #ccc; border-radius: 6px; padding: 10px 14px; margin: 12px 0 }
+  .slot { display: grid; grid-template-columns: 90px 1fr; gap: 6px 12px; align-items: center; margin-bottom: 10px }
+  .params { grid-column: 2; display: grid; grid-template-columns: 90px 1fr 60px; gap: 4px 8px; align-items: center }
+  #keys button { width: 34px; height: 60px; margin: 1px }
+  #status { color: #555 }
+  .chain { font-family: ui-monospace, monospace }
+  table { border-collapse: collapse } td { padding: 2px 10px 2px 0 }
+</style>
+</head>
+<body>
+<h1>Runtime modules <span class="chain">(engine -&gt; insert 1 -&gt; insert 2 -&gt; out)</span></h1>
+<p id="status">loading the module set...</p>
+<section>
+  <table id="mods"></table>
+  <p id="notices"></p>
+</section>
+<section>
+  <button id="start" disabled>Start audio</button>
+  <label>Engine <select id="engine" disabled></select></label>
+  <span id="meter" class="chain"></span>
+  <div id="keys"></div>
+</section>
+<section id="inserts"></section>
+<script type="module" src="/modules.js"></script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+{
+ "_comment": "The runtime modules this editor loads, pinned by release tag and sha256 (scripts/modules.ts fetches and checks them into build/modules/<set>, nothing of a module's source is in this repository). Four sets, one loader. The two FF sets pin the re-issued releases engines-v1.2.1 and effects-v1.0.1 (the .wasm files are byte identical to the first releases, only the manifests changed). engines-os and effects-os: the public OpenTracker ports (ten synth engines, five master inserts), tag_status published: their GitHub release holds every file listed here and scripts/modules.ts without --from downloads it. engines and effects: the FF modules (PHZ and PLK, Console and Tube), proprietary freeware, built modules only. Their repository is not named here: repo_env names the environment variable that holds it (owner/name), scripts/modules.ts reads it, and a set whose variable is unset or unreadable is left out with --optional. Local stand-ins for --from (from_dir and also_from, directories with the same files, the first copy with the pinned sha256 wins) live in the git ignored modules.local.json, a map from set name to those two keys. engines.overrides: a module of the set that is not the tag's (PLK 1.1, see there). Regenerate the hashes with bun scripts/modules.ts --update --from.",
+ "format_version": 2,
+ "sets": {
+  "engines-os": {
+   "visibility": "public",
+   "repo": "sbialy/tracker-engines-os",
+   "tag": "v1.2.0",
+   "tag_commit": "f20ded8ad84e8acb6ea61f3c8b7c4fa7653af718",
+   "tag_status": "published",
+   "files": {
+    "LICENSE-OpenTracker-Apache-2.0.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "LICENSE-OpenTracker-synths-MIT.txt": "313016655fb017714d4735f4772a8f6761b7c2c2ccce70db070e00bfdfba9058",
+    "LICENSE-PolyendTracker-CE.txt": "92ea2a7264d71826a45e0095badad93c6b22b1c72dc8cf704f43eee1484bf3bb",
+    "LICENSE-tracker-ff-MIT.txt": "c922340e052e913e48e48f8827efc86833c9378380120bf85d67f8dba7056a78",
+    "NOTICE.md": "87c042319a3fb333bd1591b7d0d0be5e48b1ca4bf2c8a60d2dc7b1d6d21ce4a9",
+    "arc.json": "6c5359258ea12efbea36aae1e7c3d077068f43017bc72c2f9e31e5e0b0076c57",
+    "arc.wasm": "8782a0dcf3a14356f967e1a78ce8ebaac06a0f5f4ce9c32ef80d6d40741a2050",
+    "atype.json": "c2475570c5ef2706686877bfa31f30a70e1da45bb7e5a3d074b3fb0a5ae01842",
+    "atype.wasm": "d0159944d968db0ddcacd3f051e086daf78d76466c48f181364ca2c9eb16c05d",
+    "btype.json": "158083c2381bcb46b8ba203dc4cb98ca7587839d919573a961df117ca673a570",
+    "btype.wasm": "dfada749f95442e310ba9286ff0ff7ea7d2cbc83deef46c34ba17c2ea61a2384",
+    "cstype.json": "3babf729397460979d28fa5fb660c311e8548acd4a2f562b37203b1b4630dda3",
+    "cstype.wasm": "8c64612f7c4f3766aa34c3ca51bd34c3b2e366ec88fbe85d6719eb442ade33bc",
+    "dtype.json": "375cbedc9071d2d82cadce753a92a96071089553ce47b5527be93f1ccc54dc9a",
+    "dtype.wasm": "763b1dae38ad89ba28e824cef24a7d565a3f3520ef1ee4d18a4f718fb30fc304",
+    "eight.json": "379bd2766c8a5f9544d683e3bbf2f4d4a426d5c6ef250ade5c20d1441a5bd13f",
+    "eight.wasm": "9f7bf973a0eb2224344dd409154b5065e77dc2f51d31f82189c86563925206c1",
+    "fm4.json": "e31536c0f7df3c70ce3cf39661e712cfc93028aa9f4e929df26fe79e16f04605",
+    "fm4.wasm": "f879371309ff0658faedd20143cf01c34a312c55c9eaade2a229102136c0613e",
+    "hand.json": "56ad0ab8d2fecc74c89a37fd7e4b1517ef9e68cd25c5abf9a69b5cd9c6b53356",
+    "hand.wasm": "1c95bb82f30fa691c2459f167a0fbdea4b275ae3f4a9d4123f669c4819af7c2c",
+    "ju6.json": "d455ed5e9baf9a480d1502b1823935f73e97ab7ef23cb4ff4b631c96bd5866b1",
+    "ju6.wasm": "1ec506e532e47d36233f9cff8b5408f709871f7f80583897a058e15c23ae4cea",
+    "ttype.json": "10afdae8403b70cff24ada13aae8aa8d12209b70f26491d3c51e8986a774eff2",
+    "ttype.wasm": "00485af55d17055ed0bfce69a18c0872c5ad9d67c59c4afdaf05837f9c4de9d2"
+   }
+  },
+  "effects-os": {
+   "visibility": "public",
+   "repo": "sbialy/tracker-effects-os",
+   "tag": "v1.2.0",
+   "tag_commit": "1350bb6e7f74a6ef22f9c0c54e8a0a481ea5cc35",
+   "tag_status": "published",
+   "files": {
+    "LICENSE-OpenTracker-Apache-2.0.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "LICENSE-OpenTracker-fx-MIT.txt": "313016655fb017714d4735f4772a8f6761b7c2c2ccce70db070e00bfdfba9058",
+    "LICENSE-tracker-ff-MIT.txt": "c922340e052e913e48e48f8827efc86833c9378380120bf85d67f8dba7056a78",
+    "NOTICE.md": "bccbfc10393f81b1179a2dd8e0c6397215d25f77ccff4e21d0e8d8292ebf6820",
+    "bbd.json": "8b436bce8ce24704bd00069587f2708b032614e7ab360a5c8c2d125029ab80e1",
+    "bbd.wasm": "2bb2c2c850539ad8f48c58006fc37a75353282eea4847611c6ed253f8649ff0d",
+    "dirt.json": "1d7a7546672b6d68874275bb90a29989a7c280840be0fef503b03e48e18f5477",
+    "dirt.wasm": "ebac28e69e048677d86f4a1a074f3b1dce1da09d978c256dd82dbbff74154c54",
+    "lofi.json": "e1bd3bf6ea29654f59be6cf899d8ec6c8360aed615f2baaa5ed6ff44f70777b8",
+    "lofi.wasm": "b99628d89f16ec4108ef79bab78ba00fe32d419302d2d647aab6e367c7e7c2df",
+    "phaser.json": "a51749de4eceacb7e7db825aed1624b0d7edb7ceb75b9d1cc3b5bb74199c8c6e",
+    "phaser.wasm": "429cff19daad3bc3bdd6bec9050ae5a04b2cdbc73bd667e26c6cea689938b884",
+    "tape.json": "cdee3254688dbe59fddbc57892927055066a5877f1fefb817e5043443d8e4000",
+    "tape.wasm": "33877bf2e016432136c93f91b05ed0c4fd145c0d1b1874365e19e5fd1d40ddfa"
+   }
+  },
+  "engines": {
+   "visibility": "private",
+   "repo_env": "MODULES_ENGINES_REPO",
+   "tag": "engines-v1.2.1",
+   "tag_commit": "0bb42061d4921c2ea2a1c55dd5ec527f32fd24c0",
+   "tag_status": "local",
+   "files": {
+    "LICENSE-OpenTracker-Apache-2.0.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "LICENSE-tracker-ff-MIT.txt": "c922340e052e913e48e48f8827efc86833c9378380120bf85d67f8dba7056a78",
+    "LICENSE.md": "fd96fd6d22348ff5f116ca5eccf89d99e522052d84528436ffdeac2550add279",
+    "NOTICE.md": "e2f9845226c030139e638da8a9de28910f7ea8243012443f83fc602557e04ad4",
+    "phz.json": "95ea12cc347b5890d173476e6bac0cf4574ee3f4699c6b6d4a43cd5fef1a923d",
+    "phz.wasm": "d523341801813d0d5cb37dd09815787d7fa4a8175ff7e1fd957dd4f3335d64ea",
+    "pluck.json": "e6266ff21099285e8427137b0a9737ed4f267fada00d75bd2c24e2d3f3e5a7ac",
+    "pluck.wasm": "f4cfd3ce862016a04d67a956ba32261f5a75b93e003f5b8d0b550141efd4db62"
+   },
+   "overrides": {
+    "pluck": {
+     "_comment": "PLK 1.1 (Vel Bright, Body), the PLK that the tracker-ff 1.2.0 release zip ships (Plugins/Synth/pluck.plg, plg_sha256). It is built from a later commit than the engines-v1.2.0 tag, which holds PLK 1.0. Every other file of this set is the tag's.",
+     "commit": "e2ce0b5fe5ae8e97a68652b8db5f90772fd7dbef",
+     "version": "1.1.0",
+     "wasm_sha256": "f4cfd3ce862016a04d67a956ba32261f5a75b93e003f5b8d0b550141efd4db62",
+     "plg_sha256": "fcabdc0ac8b540f02b3c62b1bc6749a08d1486e899a7629d57411aa018500bc0"
+    }
+   }
+  },
+  "effects": {
+   "visibility": "private",
+   "repo_env": "MODULES_EFFECTS_REPO",
+   "tag": "effects-v1.0.1",
+   "tag_commit": "5ee21dee1df0c015a1e01b48d320e5637985fa85",
+   "tag_status": "local",
+   "files": {
+    "LICENSE-tracker-ff-MIT.txt": "c922340e052e913e48e48f8827efc86833c9378380120bf85d67f8dba7056a78",
+    "LICENSE.md": "fd96fd6d22348ff5f116ca5eccf89d99e522052d84528436ffdeac2550add279",
+    "NOTICE.md": "f5b2b111fa101f9b502c9998bf597225803e6a2470996fc0bf5006ad64426837",
+    "console.json": "736fb59f933cd245f15434846439aab26d2aa990d4c7d18f4bbf1c1caef24a7a",
+    "console.wasm": "a3bb143b21307b7ff6783d4e1b5ba32a4d9088f9acfecbd675709dd0c51409ae",
+    "tube.json": "00b5dda56f7e21f3e89d28f96b962fa869c396d9f9aa382bcd2e28049f2d5820",
+    "tube.wasm": "a5370d4bab6974158c8a2ed3e2c56187de718045579e9d37e8424fcabfc0ceef"
+   }
+  }
+ }
+}

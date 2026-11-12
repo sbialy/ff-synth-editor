@@ -1,0 +1,20 @@
+# OpenTracker module manifest (core: docs/PLAN_3X.md §7.2, tools/profile.py).
+id      = "8TY1"
+name    = "8-Type synth"
+version = "1.0.0"
+api     = 1
+entry   = "eightModule"
+caps    = ["synthEngine"]
+sources = ["eight.cpp", "eight_desc.cpp", "eight_module.cpp"]
+tests   = ["engine_eight_test.cpp"]
+
+flash_max_bytes   = 20500             # measured 20,036 B (plan 13,500: owner decision)
+sram_audio_bytes  = 0                 # no static buffers (the tables are const)
+sdram_bytes       = 0
+fastrun_bytes     = 0
+cpu_insn_per_unit = 27000             # bench-m4 limit per voice (eight.unit 26.3k: three oscillators, sync, ring, filter, tricks; plan 24,000: owner decision)
+max_units         = 8
+bench             = "eight"
+engines           = [134]             # 0x86: a module engine (not a Tracker Mini model)
+bench_sources     = ["eight_bench.cpp"]
+bench_entry       = "eightBench"

@@ -1,0 +1,20 @@
+# OpenTracker module manifest (core: docs/PLAN_3X.md §7.2, tools/profile.py).
+id      = "JU6S"
+name    = "JU6 synth"
+version = "1.0.0"
+api     = 1
+entry   = "ju6Module"
+caps    = ["synthEngine"]
+sources = ["ju6.cpp", "ju6_desc.cpp", "ju6_module.cpp"]
+tests   = ["engine_ju6_test.cpp"]
+
+flash_max_bytes   = 7500              # 7.0 KB measured with the chorus (5.5 KB before it)
+sram_audio_bytes  = 1536              # the chorus lines: 3 slots x 256 int16 frames
+sdram_bytes       = 0
+fastrun_bytes     = 0
+cpu_insn_per_unit = 18000             # bench-m4 limit per voice (ju6.unit ~15.8k worst)
+max_units         = 8
+bench             = "ju6"
+engines           = [129]             # 0x81: a module engine (not a Tracker Mini model)
+bench_sources     = ["ju6_bench.cpp"]
+bench_entry       = "ju6Bench"

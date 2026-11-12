@@ -1,0 +1,128 @@
+// VAP (VA) parameter metadata for the open PolySynth shim on MK66.
+// Indices and ranges follow OpenTracker's VAP engine (synth-open/ot/audio/engines/vap.h, Apache-2.0),
+// labels and sections follow the Tracker Mini manual naming as used by OpenTracker.
+#include "open_engine.h"
+
+#include "audio/engines/vap.h"
+#include "PolySynth/config.h"
+
+namespace polysynth::open
+{
+namespace
+{
+using ot::audio::vap::Param;
+
+const char* const kFilter[] = { "LP MG 24dB",   "LP OB 24dB",   "LP OB 12dB",   "LP SVF 24dB",   "LP SVF 12dB",
+                                "HP OB 24dB",   "HP OB 12dB",   "HP SVF 24dB",  "HP SVF 12dB",   "BP OB 24dB",
+                                "BP OB 12dB",   "BP SVF 24dB",  "BP SVF 12dB",  "Notch SVF 24dB", "Notch SVF 12dB" };
+const char* const kModSrc[] = { "Amp Env", "Env 1 (Fltr)", "Env 2", "LFO 1", "LFO 2" };
+const char* const kModDest[] = { "Osc1 PWM",        "Osc2 PWM",      "Osc Mix",     "Filter Cutoff", "Amp Env Sustain",
+                                 "Flt Env Sustain", "Wave Env Sustain", "Volume",   "Osc1 Pitch",    "Osc2 Pitch",
+                                 "Flt Env Decay",   "Noise Volume",  "Osc1 Shape",  "Osc2 Shape" };
+
+using F = Fmt;
+using C = CurveKind;
+
+#define MODROW(k) \
+    { "Src " #k, 0, 0, 4, F::kEnum, C::kLinear, kModSrc }, { "Dest " #k, 0, 0, 13, F::kEnum, C::kLinear, kModDest }, \
+      { "Amt " #k, 0, -4, 4, F::kPctMax, C::kLinear, nullptr }
+
+const ParamDef kParams[Param::kParamCount] = {
+    { "Shape 1", 0.5f, 0, 1, F::kVal100, C::kLinear, nullptr },
+    { "Shape 2", 0.5f, 0, 1, F::kVal100, C::kLinear, nullptr },
+    { "PW 1", 0, -0.5f, 0.5f, F::kVal100, C::kLinear, nullptr },
+    { "PW 2", 0, -0.5f, 0.5f, F::kVal100, C::kLinear, nullptr },
+    { "Mix", 0, -1, 1, F::kPct, C::kLinear, nullptr },
+    { "Tune 1", 0, -36, 36, F::kSemi, C::kLinear, nullptr },
+    { "Tune 2", 0, -36, 36, F::kSemi, C::kLinear, nullptr },
+    { "Detune", 0, 0, 100, F::kCents, C::kLinear, nullptr },
+    { "Finetune", 0, -100, 100, F::kCents, C::kLinear, nullptr },
+    { "Reset 1", 0, 0, 1, F::kOnOff, C::kLinear, nullptr },
+    { "Reset 2", 0, 0, 1, F::kOnOff, C::kLinear, nullptr },
+    { "Type", 0, 0, 14, F::kEnum, C::kLinear, kFilter },
+    { "Cutoff", 400, 20, 20000, F::kHz, C::kExp, nullptr },
+    { "Resonance", 0.5f, 0, 1.5f, F::kPctMax, C::kLinear, nullptr },
+    { "Env Amt", 0.14f, -1, 1, F::kPct, C::kLinear, nullptr },
+    { "Attack", 0, 0, 10, F::kSec, C::kSteep, nullptr },
+    { "Decay", 0.5f, 0, 10, F::kSec, C::kSteep, nullptr },
+    { "Sustain", 1, 0, 1, F::kPct, C::kLinear, nullptr },
+    { "Release", 0.3f, 0, 10, F::kSec, C::kSteep, nullptr },
+    { "Attack", 0, 0, 10, F::kSec, C::kSteep, nullptr },
+    { "Decay", 0.5f, 0, 10, F::kSec, C::kSteep, nullptr },
+    { "Sustain", 0, 0, 1, F::kPct, C::kLinear, nullptr },
+    { "Release", 0.5f, 0, 10, F::kSec, C::kSteep, nullptr },
+    { "Attack", 0, 0, 10, F::kSec, C::kSteep, nullptr },
+    { "Decay", 0.5f, 0, 10, F::kSec, C::kSteep, nullptr },
+    { "Sustain", 0, 0, 1, F::kPct, C::kLinear, nullptr },
+    { "Release", 0.3f, 0, 10, F::kSec, C::kSteep, nullptr },
+    { "Ratio", 0, 0, 100, F::kLfoHz, C::kExp, nullptr },
+    { "Waveform", 1, 0, 5, F::kEnum, C::kLinear, kWaveNames },
+    { "Retrigger", 2, 0, 2, F::kEnum, C::kLinear, kRetrigNames },
+    { "Sync", 0, 0, 1, F::kOnOff, C::kLinear, nullptr },
+    { "Ratio", 0, 0, 100, F::kLfoHz, C::kExp, nullptr },
+    { "Waveform", 1, 0, 5, F::kEnum, C::kLinear, kWaveNames },
+    { "Retrigger", 2, 0, 2, F::kEnum, C::kLinear, kRetrigNames },
+    { "Sync", 0, 0, 1, F::kOnOff, C::kLinear, nullptr },
+    { "Glide Mode", 0, 0, 3, F::kEnum, C::kLinear, kGlideNames },
+    { "Glide Time", 0, 0, 3, F::kSec, C::kPower, nullptr },
+    { "Note Track", 1, -2, 2, F::kPct, C::kLinear, nullptr },
+    { "Mix Env Amt", 0, -2, 2, F::kPct, C::kLinear, nullptr },
+    { "Volume", 1, 0, 2, F::kPct, C::kLinear, nullptr },
+    { "Sync", 0, 0, 1, F::kOnOff, C::kLinear, nullptr },
+    { "Noise", 0, 0, 1, F::kPct, C::kLinear, nullptr },
+    MODROW(1), MODROW(2), MODROW(3), MODROW(4), MODROW(5), MODROW(6),
+};
+#undef MODROW
+
+const uint8_t kOsc[] = { Param::kOscMix, Param::kShape1, Param::kShape2, Param::kPw1,  Param::kPw2,
+                         Param::kTune1,  Param::kTune2,  Param::kFinetune, Param::kDetune, Param::kNoise,
+                         Param::kOscSync, Param::kReset1, Param::kReset2 };
+const uint8_t kFlt[] = { Param::kCutoff, Param::kResonance, Param::kFilterType, Param::kFilterEnvAmt, Param::kNoteTrack };
+const uint8_t kAmp[] = { Param::kAmpA, Param::kAmpD, Param::kAmpS, Param::kAmpR };
+const uint8_t kEnv1[] = { Param::kEnv1A, Param::kEnv1D, Param::kEnv1S, Param::kEnv1R };
+const uint8_t kEnv2[] = { Param::kEnv2A, Param::kEnv2D, Param::kEnv2S, Param::kEnv2R };
+const uint8_t kLfo1[] = { Param::kLfo1Ratio, Param::kLfo1Wave, Param::kLfo1Retrig, Param::kLfo1Sync };
+const uint8_t kLfo2[] = { Param::kLfo2Ratio, Param::kLfo2Wave, Param::kLfo2Retrig, Param::kLfo2Sync };
+const uint8_t kMod[] = { 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 };
+const uint8_t kVoice[] = { Param::kGlideMode, Param::kGlideTime, Param::kMixEnvAmt, Param::kVolume };
+
+const SectionDef kSections[] = {
+    { "Oscillators", "Osc", kOsc, sizeof(kOsc) },
+    { "Filter", "Filter", kFlt, sizeof(kFlt) },
+    { "Amp Envelope", "Amp Env", kAmp, sizeof(kAmp) },
+    { "Envelope 1", "Env 1", kEnv1, sizeof(kEnv1) },
+    { "Envelope 2", "Env 2", kEnv2, sizeof(kEnv2) },
+    { "LFO 1", "LFO 1", kLfo1, sizeof(kLfo1) },
+    { "LFO 2", "LFO 2", kLfo2, sizeof(kLfo2) },
+    { "Modulation", "Mod", kMod, sizeof(kMod) },
+    { "Voice", "Voice", kVoice, sizeof(kVoice) },
+};
+
+// Default macros (this shim's own choice)
+const MacroDef kMacros[] = {
+    { "Cutoff", false, 1, { { Param::kCutoff, 0.4f } } },
+    { "Resonance", false, 1, { { Param::kResonance, 1.0f } } },
+    { "Env Amount", true, 1, { { Param::kFilterEnvAmt, 1.0f } } },
+    { "Decay / Release", false, 2, { { Param::kAmpD, 0.3f }, { Param::kAmpR, 0.3f } } },
+    { "Osc Mix", true, 1, { { Param::kOscMix, 0.5f } } },
+    { "Detune", false, 1, { { Param::kDetune, 0.2f } } },
+};
+
+} // namespace
+
+const EngineDef kVapDef = {
+    "VAP",
+    static_cast<int>(InstrumentTypeId::kVASynth),
+    kParams,
+    Param::kParamCount,
+    kSections,
+    static_cast<int>(sizeof(kSections) / sizeof(kSections[0])),
+    kMacros,
+    static_cast<int>(sizeof(kMacros) / sizeof(kMacros[0])),
+    Param::kVolume,
+    kMaxVoicesPerInstrument,
+    &ot::audio::vap::engine,
+    false,
+};
+
+} // namespace polysynth::open

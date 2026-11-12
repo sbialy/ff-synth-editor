@@ -1,0 +1,23 @@
+{
+  "name": "poly-synth-editor",
+  "version": "1.1.0",
+  "private": true,
+  "description": "patch editor and engine playground pinned to the tracker-ff synth-open firmware release (the 18 engines of the release image)",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "bun scripts/build.ts",
+    "build:wasm": "bun scripts/build-wasm.ts runtime",
+    "modules": "bun scripts/modules.ts --optional",
+    "start": "bun server/index.ts",
+    "test": "bun test",
+    "vendor": "scripts/vendor.sh",
+    "vendor:ot3": "scripts/vendor-ot3.sh",
+    "compat": "bun scripts/compat.ts",
+    "defaults": "bun scripts/defaults.ts",
+    "pages": "bun scripts/pages.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

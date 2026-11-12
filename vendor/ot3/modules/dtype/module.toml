@@ -1,0 +1,20 @@
+# OpenTracker module manifest (core: docs/PLAN_3X.md §7.2, tools/profile.py).
+id      = "DTY1"
+name    = "D-Type synth"
+version = "1.0.0"
+api     = 1
+entry   = "dtypeModule"
+caps    = ["synthEngine"]
+sources = ["dtype.cpp", "dtype_desc.cpp", "dtype_module.cpp"]
+tests   = ["engine_dtype_test.cpp"]
+
+flash_max_bytes   = 12000
+sram_audio_bytes  = 0                 # no static buffers
+sdram_bytes       = 0
+fastrun_bytes     = 0
+cpu_insn_per_unit = 26000             # bench-m4 limit per voice (dtype.unit)
+max_units         = 8
+bench             = "dtype"
+engines           = [130]             # 0x82: a module engine (not a Tracker Mini model)
+bench_sources     = ["dtype_bench.cpp"]
+bench_entry       = "dtypeBench"
